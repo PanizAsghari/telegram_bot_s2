@@ -65,7 +65,7 @@ def save(update):
     cursor.execute(sql)
     conn.commit()
     sql="SELECT * FROM table_messages"
-    ms=cursor.execute(sql)
+    cursor.execute(sql)
     results = cursor.fetchall()
     for row in results:
         print(row)
