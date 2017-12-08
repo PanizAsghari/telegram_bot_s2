@@ -22,7 +22,10 @@ PROCESS_OPTION, READ_AD_TITLE, PROCESS_NULLS,ENTER_PRICE, ENTER_BRAND, ENTER_MIL
 def start(bot,update):
     global conn
     conn=create_connection()
-    member_id=update.message.chat_id
+    try:
+        member_id=update.message.chat_id
+    except AttributeError:
+        member_id=update.callback_query.message.chat_id
     if is_new_member(conn,member_id):
         add_new_member(conn, member_id)
         keyboard = [
@@ -56,6 +59,8 @@ def start(bot,update):
         else:
             ad_id=get_ad_id(member_id,conn)
             null_values=list_null_fields(ad_id, conn)
+            if len(null_values)==0:
+                return cancel_state(bot,update)
             button_list = [KeyboardButton(s) for s in null_values]
             reply_markup = ReplyKeyboardMarkup(build_menu(button_list, n_cols=2))
             bot.send_message(chat_id=member_id, text=u"کدام اطلاعات را وارد میکنید؟", reply_markup=reply_markup)
@@ -84,6 +89,7 @@ def read_ad_title(bot,update):
     insert_ad(member_id, title, conn)
     ad_id=get_ad_id(chat_id,conn)
     update_state(member_id, ad_id, conn)
+    return start(bot,update)
 
 def process_nulls(bot,update):
     member_id=update.message.chat_id
@@ -120,6 +126,8 @@ def process_nulls(bot,update):
             reply_markup=reply_markup
         )
         return READ_TRANS
+    if null_field is None:
+        return DONE
 
 
 
@@ -174,7 +182,7 @@ def read_trans(bot,update):
     ad_id=get_ad_id(chat_id,conn)
     trans=int(trans)
     update_field(ad_id,'transmission',trans,conn)
-    return done(bot,update)
+    return start(bot,update)
 
 def done(bot,update):
     print(update)
@@ -206,11 +214,16 @@ def cancel_state(bot,update):
     chat_id = query.message.chat_id
 
     #He must start from the scratch
-    ad_id=get_ad_id(chat_id)
+    ad_id=get_ad_id(chat_id,conn)
     if ad_id is None:
-        update_state(chat_id, 0)
+        update_state(chat_id, 0,conn)
     else:
-        update_state(chat_id,ad_id)
+        nulls=list_null_fields(ad_id,conn)
+        if len(nulls)==0:
+            update_state(chat_id,0,conn)
+            update.message.reply_text(u'آگهی شما با موفقیت افزوده شد')
+        else:
+            update_state(chat_id, ad_id,conn)
     user = query.message.from_user
     logger.info(u"User %s canceled the conversation.", user.first_name)
     query.message.reply_text(u'باز هم به ما سر بزن!',
@@ -261,7 +274,7 @@ def main():
             READ_TRANS: [CallbackQueryHandler(read_trans)],
         },
 
-        fallbacks=[CommandHandler('^Done$', cancel_state),
+        fallbacks=[CommandHandler('cancel', cancel_state),
                    CallbackQueryHandler(cancel_state)],
     )
 
