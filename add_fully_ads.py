@@ -14,10 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 from db_helper_v2 import is_new_member,create_connection, fetch_state, get_ad_id,list_null_fields,update_state,update_field,insert_ad
-from db_helper_v2 import add_new_member
+from db_helper_v2 import add_new_member,search_year,search_price,search_mileage
 
 PROCESS_OPTION, READ_AD_TITLE, PROCESS_NULLS,ENTER_PRICE, ENTER_BRAND, ENTER_MILEAGE, ENTER_MODEL, ENTER_RELEASE_YEAR,\
-    READ_TRANS,DONE= range(10)
+    READ_TRANS,DONE, SEARCH, READ_START_YEAR, READ_END_YEAR,READ_START_PRICE,READ_END_PRICE,READ_END_MILEAGE, \
+    READ_START_MILEAGE= range(17)
 
 def start(bot,update):
     global conn
@@ -81,6 +82,21 @@ def process_option(bot,update):
     if option==2:
         update_state(member_id, 2, conn)
         return cancel_state(bot,update)
+    if option==3:
+        print(update)
+        keyboard = [
+            [InlineKeyboardButton(u"قیمت", callback_data='1')],
+            [InlineKeyboardButton(u"کارکرد", callback_data='2')],
+            [InlineKeyboardButton(u"سال تولید", callback_data='3')],
+            [InlineKeyboardButton(u"برند", callback_data='4')],
+
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        update.callback_query.message.reply_text(
+            u"بر چه اساسی جست و جو میکنید؟",
+            reply_markup=reply_markup
+        )
+        return SEARCH
 
 def read_ad_title(bot,update):
     chat_id=update.message.chat_id
@@ -204,6 +220,107 @@ def build_menu(buttons,
     return menu
 
 
+def search_ad(bot,update):
+    query=int(update.callback_query.data)
+    if query==1:
+        update.callback_query.message.reply_text('از چه قیمتی جست وجو را شروع میکنید؟')
+        return READ_START_PRICE
+    if query==3:
+        update.callback_query.message.reply_text('از چه سالی جست وجو را شروع میکنید؟')
+        return READ_START_YEAR
+    if query==2:
+        update.callback_query.message.reply_text('از چه کارکردی جست وجو را شروع میکنید؟')
+        return READ_START_MILEAGE
+
+
+def read_start_year(bot,update):
+    global start_date
+    start_date=int(update.message.text)
+    update.message.reply_text('تا چه سالی جست وجو میکنید؟')
+    return READ_END_YEAR
+
+def read_end_year(bot,update):
+    print('read end year')
+    member_id=update.message.chat_id
+    end_date=int(update.message.text)
+    ads=search_year(start_date, end_date, conn)
+    for ad in ads:
+        print(ad[0])
+        info=u' مدل: '+str(ad[0])
+        #print(model)
+        info=info+u' برند: '+str(ad[1])
+        info=info+u' کارکرد: '+str(ad[2])
+        info=info+u' سال تولید: '+str(ad[3])
+        info=info+u'قیمت: '+str(ad[4])
+        keyboard = [
+            #[InlineKeyboardButton(text=brand, url='www.google.com'),
+            #InlineKeyboardButton(text=model,url='www.google.com'),
+            [InlineKeyboardButton(text=info,url='www.google.com')],
+            #[InlineKeyboardButton(text=year,url='www.google.com')],
+            #[InlineKeyboardButton(text=price,url='www.google.com')],
+
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard,resize_keyboard=True,one_time_keyboard=True)
+        bot.send_message(chat_id=member_id, text=u"خودروی منطبق", reply_markup=reply_markup)
+        return start(bot,update)
+
+
+
+def read_start_price(bot,update):
+    global start_price
+    start_price=int(update.message.text)
+    update.message.reply_text('تا چه قیمتی جست وجو میکنید؟')
+    return READ_END_PRICE
+
+def read_end_price(bot,update):
+    print('read end year')
+    member_id=update.message.chat_id
+    end_price=int(update.message.text)
+    ads=search_price(start_price, end_price, conn)
+    for ad in ads:
+        print(ad[0])
+        info=u' مدل: '+str(ad[0])
+        #print(model)
+        info=info+u' برند: '+str(ad[1])
+        info=info+u' کارکرد: '+str(ad[2])
+        info=info+u' سال تولید: '+str(ad[3])
+        info=info+u'قیمت: '+str(ad[4])
+        keyboard = [
+            [InlineKeyboardButton(text=info,url='www.google.com')],
+            ]
+        reply_markup = InlineKeyboardMarkup(keyboard,resize_keyboard=True,one_time_keyboard=True)
+        bot.send_message(chat_id=member_id, text=u"خودروی منطبق", reply_markup=reply_markup)
+        return start(bot,update)
+
+
+def read_start_mileage(bot,update):
+    global start_mileage
+    start_mileage=int(update.message.text)
+    update.message.reply_text('تا چه کارکردی جست وجو میکنید؟')
+    return READ_END_MILEAGE
+
+def read_end_mileage(bot,update):
+    print('read end mileage')
+    member_id=update.message.chat_id
+    end_mileage=int(update.message.text)
+    ads=search_mileage(start_mileage, end_mileage, conn)
+    for ad in ads:
+        print(ad[0])
+        info=u' مدل: '+str(ad[0])
+        #print(model)
+        info=info+u' برند: '+str(ad[1])
+        info=info+u' کارکرد: '+str(ad[2])
+        info=info+u' سال تولید: '+str(ad[3])
+        info=info+u'قیمت: '+str(ad[4])
+        keyboard = [
+            [InlineKeyboardButton(text=info,url='www.google.com')],
+            ]
+        reply_markup = InlineKeyboardMarkup(keyboard,resize_keyboard=True,one_time_keyboard=True)
+        bot.send_message(chat_id=member_id, text=u"خودروی منطبق", reply_markup=reply_markup)
+        return start(bot,update)
+
+
+
 
 
 def cancel_state(bot,update):
@@ -272,6 +389,20 @@ def main():
             ENTER_RELEASE_YEAR: [MessageHandler(Filters.text,
                                          enter_release_year)],
             READ_TRANS: [CallbackQueryHandler(read_trans)],
+            SEARCH: [CallbackQueryHandler(search_ad)],
+            READ_START_YEAR: [MessageHandler(Filters.text,
+                                              read_start_year)],
+            READ_END_YEAR: [MessageHandler(Filters.text,
+                                           read_end_year)],
+            READ_START_PRICE: [MessageHandler(Filters.text,
+                                              read_start_price)],
+            READ_END_PRICE: [MessageHandler(Filters.text,
+                                           read_end_price)],
+            READ_START_MILEAGE: [MessageHandler(Filters.text,
+                                              read_start_mileage)],
+            READ_END_MILEAGE: [MessageHandler(Filters.text,
+                                            read_end_mileage)],
+
         },
 
         fallbacks=[CommandHandler('cancel', cancel_state),
