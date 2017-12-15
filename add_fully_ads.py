@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 
-from db_helper_v2 import is_new_member,create_connection, fetch_state, get_ad_id,list_null_fields,update_state,update_field,insert_ad
-from db_helper_v2 import add_new_member,search_year,search_price,search_mileage
+from db_helper_stored_procedure import is_new_member,create_connection, fetch_state, get_ad_id,list_null_fields,update_state,update_field,insert_ad
+from db_helper_stored_procedure import add_new_member,search_year,search_price,search_mileage,insert_ad_transaction
 
 PROCESS_OPTION, READ_AD_TITLE, PROCESS_NULLS,ENTER_PRICE, ENTER_BRAND, ENTER_MILEAGE, ENTER_MODEL, ENTER_RELEASE_YEAR,\
     READ_TRANS,DONE, SEARCH, READ_START_YEAR, READ_END_YEAR,READ_START_PRICE,READ_END_PRICE,READ_END_MILEAGE, \
@@ -101,10 +101,7 @@ def process_option(bot,update):
 def read_ad_title(bot,update):
     chat_id=update.message.chat_id
     title=update.message.text
-    member_id=update.message.chat_id
-    insert_ad(member_id, title, conn)
-    ad_id=get_ad_id(chat_id,conn)
-    update_state(member_id, ad_id, conn)
+    insert_ad_transaction(chat_id,title)
     return start(bot,update)
 
 def process_nulls(bot,update):
@@ -277,20 +274,23 @@ def read_end_price(bot,update):
     member_id=update.message.chat_id
     end_price=int(update.message.text)
     ads=search_price(start_price, end_price, conn)
-    for ad in ads:
-        print(ad[0])
-        info=u' مدل: '+str(ad[0])
-        #print(model)
-        info=info+u' برند: '+str(ad[1])
-        info=info+u' کارکرد: '+str(ad[2])
-        info=info+u' سال تولید: '+str(ad[3])
-        info=info+u'قیمت: '+str(ad[4])
-        keyboard = [
-            [InlineKeyboardButton(text=info,url='www.google.com')],
-            ]
-        reply_markup = InlineKeyboardMarkup(keyboard,resize_keyboard=True,one_time_keyboard=True)
-        bot.send_message(chat_id=member_id, text=u"خودروی منطبق", reply_markup=reply_markup)
-        return start(bot,update)
+    print('ads:')
+    print(ads)
+    a_list = []
+    for ele in ads:
+        a_list.append(list(ele))
+        for info in a_list:
+            info=info+u' برند: '+str(info[0])
+            info=info+u' کارکرد: '+str(info[2])
+            info=info+u' سال تولید: '+str(info[3])
+            info=info+u'قیمت: '+str(info[4])
+            print(info)
+            keyboard = [
+                [InlineKeyboardButton(text=info,url='www.google.com')],
+                ]
+            reply_markup = InlineKeyboardMarkup(keyboard,resize_keyboard=True,one_time_keyboard=True)
+            bot.send_message(chat_id=member_id, text=u"خودروی منطبق", reply_markup=reply_markup)
+    return start(bot,update)
 
 
 def read_start_mileage(bot,update):
